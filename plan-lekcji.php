@@ -333,10 +333,10 @@ $menu_contents = preg_replace_callback('/href="(.*?)"/', function ($matches) use
                 // Generowanie kodu HTML do wyświetlenia
 $output = '<style>
     /*style planu lekcji*/
-    .toggle-list, .col, .col2, .col3 { display: none; }
+    .col, .col2, .col3 { display: none; }
     .zglos { text-align: right; }
     .aktualizacja { text-align: right; }
-    .toggle-list.show, .col, .col2, .col3 { display: block; }
+    .col, .col2, .col3 { display: block; }
     
     .tabela { 
         width: 100%; 
@@ -421,18 +421,29 @@ $output = '<style>
     .toggle-header { 
         color: #fff; 
         cursor: pointer; 
+    margin: 15px 0 !important; /* Nadpisanie domyślnego margin */
+    padding: 0 !important; /* Nadpisanie domyślnego padding */
     }
 
-    .toggle-list { 
-        list-style: none; 
-        padding: 0; 
-        overflow: hidden; 
-        transition: max-height 0.5s ease-out; 
-    }
+.toggle-list {
+    opacity: 0; /* Ukrywa elementy */
+    visibility: hidden; /* Ukrywa elementy */
+    max-height: 0; /* Ukrywa menu, ustawiamy na 0 */
+    overflow: hidden; /* Ukrywa zawartość poza max-height */
+    padding: 0; /* Usuwa padding */
+    position: relative; /* Ustalamy element w miejscu, nie zajmuje przestrzeni w układzie */
+    transition: max-height 0.5s ease-in-out, opacity 5s ease-in-out; /* Animacja */
+}
 
-    .toggle-list.show { 
-        transition: max-height 1s ease-in; 
-    }
+.toggle-list.show {
+    opacity: 1; /* Pokazuje elementy */
+    visibility: visible; /* Pokazuje elementy */
+    max-height: 10000px; /* Ustawiamy max-height na dużą wartość, aby rozwinąć */
+    padding: 0; /* Może pozostać brak paddingu */
+    margin: 0; /* Usuwamy marginesy */
+    position: relative; /* Przywraca normalną pozycję */
+    transition: max-height 0.5s ease-in-out, opacity 0.5s ease-in-out; /* Animacja */
+}
 
     .content-container.site-container { 
         width: 100%; 
@@ -440,6 +451,8 @@ $output = '<style>
     }
 ul {
     list-style-type: none !important;
+    margin-right: 15px !important;
+    margin-bottom: 0 !important; /* Nadpisanie domyślnego margin */
 }
     a { 
         color: #fff; 
@@ -517,17 +530,17 @@ $output .= '<div id="loading" class="loading" style="display: none;"></div>';  /
                             $output .= '<div class="container">';
                                 $output .= '<div class="col">';
                                     // Menu Oddziały
-                                    $output .= '<h4  class="toggle-header oddzialy" style="text-align: center; margin-top: 15px;">Oddziały</h4>';
+                                    $output .= '<h4  class="toggle-header oddzialy" style="text-align: center; margin-top: 15px">Oddziały</h4>';
                                     $output .= '<hr style="height: 5px; background: gray; margin: 0;">';
                                     $output .= '<ul id="oddzialy" class="toggle-list">' . $oddzialy[1] . '</ul>';
 
                                     // Menu Nauczyciele
-                                    $output .= '<h4  class="toggle-header nauczyciele" style="text-align: center; margin-top: 15px;">Nauczyciele</h4>';
+                                    $output .= '<h4  class="toggle-header nauczyciele" style="text-align: center;">Nauczyciele</h4>';
                                     $output .= '<hr style="height: 5px; background: gray; margin: 0;">';
                                     $output .= '<ul id="nauczyciele" class="toggle-list"><ul>' . $sorted_nauczyciele . '</ul></ul>';
 
                                     // Menu Sale
-                                    $output .= '<h4  class="toggle-header sale" style="text-align: center; margin-top: 15px;">Sale</h4>';
+                                    $output .= '<h4  class="toggle-header sale" style="text-align: center;">Sale</h4>';
                                     $output .= '<hr style="height: 5px; background: gray; margin: 0;">';
                                     $output .= '<ul id="sale" class="toggle-list">' . $sale[1] . '</ul>';
                                 $output .= '</div>'; // .col
@@ -549,7 +562,7 @@ $output .= '<div id="loading" class="loading" style="display: none;"></div>';  /
                         $output .= '<h5 style="display: inline; margin-left: 5px; font-size: 18px;">' . do_shortcode('[data_obowiazywania_shortcode]') . ' r.</h5>';
                     $output .= '</div>';
                     $output .= '<div class="zglos">';
-                        $output .= '<h4><a href="/index.php/plan-contact" style="color: red; text-decoration: none;">Zgłoś błąd w planie</a></h4>';
+                        $output .= '<h4><a href="/plan-contact" style="color: red; text-decoration: none;">Zgłoś błąd w planie</a></h4>';
                     $output .= '</div>';
                     $output .= '<div class="aktualizacja"> Aktualizacja: ' . date("d-m-Y H:i", filemtime($file_path)) . '</div>';
                     $output .= '<div class="print-button" style="text-align: left; margin-top: 5px; margin-left: 5px;">';
