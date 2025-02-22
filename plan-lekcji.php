@@ -2,17 +2,38 @@
 /*
 Plugin Name: Plan Lekcji
 Description: Tworzy plan lekcji na na podstawie plików html i umożliwia wyświetlanie planu jako shortcode.
-Version: 2.2
+Version: 2.4
 Author: Damian Wałach
+License: GPL-2.0-or-later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
 */
 
+
+
+// Custom sanitization function for the settings
+function sanitize_plan_lekcji_options($input) {
+    // Handle sanitization for boolean values (checkboxes)
+    if (is_bool($input)) {
+        return (bool)$input; // Convert to boolean
+    }
+    
+    // For text fields, sanitize text input
+    if (is_string($input)) {
+        return sanitize_text_field($input);
+    }
+
+    return $input; // Default return if no other conditions apply
+}
 
 // Rejestracja ustawienia dla wyłączenia planu
 function plan_lekcji_register_settings() {
     // Rejestracja ustawienia daty obowiązywania planu
-    register_setting('plan_lekcji_options_group', 'data_obowiazywania_option');
-    register_setting('plan_lekcji_options_group', 'plan_disabled_option');  // Nowe ustawienie
-	register_setting('plan_lekcji_options_group', 'show_plan_for_logged_in_option');
+    register_setting('plan_lekcji_options_group', 'data_obowiazywania_option', 'sanitize_text_field');
+    register_setting('plan_lekcji_options_group', 'data_obowiazywania_test_plan', 'sanitize_text_field');
+    register_setting('plan_lekcji_options_group', 'plan_disabled_option', 'sanitize_plan_lekcji_options');  // Sanitization for boolean option
+    register_setting('plan_lekcji_options_group', 'show_plan_for_logged_in_option', 'sanitize_plan_lekcji_options'); // Sanitization for boolean option
+    register_setting('plan_lekcji_options_group', 'enable_test_plan_option', 'sanitize_plan_lekcji_options'); // Sanitization for boolean option
+    register_setting('plan_lekcji_options_group', 'only_test_plan_option', 'sanitize_plan_lekcji_options'); // Sanitization for boolean option
 
     // Dodanie pola daty obowiązywania planu do sekcji ustawień
     add_settings_section('plan_lekcji_main_section', 'Główne ustawienia planu lekcji', null, 'plan_lekcji');
@@ -24,28 +45,78 @@ function plan_lekcji_register_settings() {
         'plan_lekcji_main_section'
     );
     add_settings_field(
+        'data_obowiazywania_test_plan', 
+        'Data obowiązywania planu testowego (format: d-m-Y)', 
+        'data_obowiazywania_test_plan_field', 
+        'plan_lekcji', 
+        'plan_lekcji_main_section'
+    );
+    add_settings_field(
         'plan_disabled_option', 
         'Wyłącz plan lekcji', 
         'plan_disabled_option_field', 
         'plan_lekcji', 
         'plan_lekcji_main_section'
     );
-	add_settings_field(
-    'show_plan_for_logged_in_option', 
-    'Pokaż plan lekcji dla zalogowanych użytkowników, gdy plan jest wyłączony', 
-    'show_plan_for_logged_in_option_field', 
-    'plan_lekcji', 
-    'plan_lekcji_main_section'
+    add_settings_field(
+        'show_plan_for_logged_in_option', 
+        'Pokaż plan lekcji dla zalogowanych użytkowników, gdy plan jest wyłączony', 
+        'show_plan_for_logged_in_option_field', 
+        'plan_lekcji', 
+        'plan_lekcji_main_section'
+    );
+    add_settings_field(
+        'enable_test_plan_option', 
+        'Włącz plan normalny i testowy (równocześnie)', 
+        'enable_test_plan_option_field', 
+        'plan_lekcji', 
+        'plan_lekcji_main_section'
+    );
+    add_settings_field(
+        'only_test_plan_option', 
+        'Włącz tylko plan testowy (bez normalnego planu)', 
+        'only_test_plan_option_field', 
+        'plan_lekcji', 
+        'plan_lekcji_main_section'
     );
 }
 
-// Funkcja wyświetlająca pole do wprowadzenia daty obowiązywania planu
+// Function to display the checkbox for "Only Test Plan"
+function only_test_plan_option_field() {
+    $only_test_plan = get_option('only_test_plan_option', false);
+    ?>
+    <input type="checkbox" name="only_test_plan_option" value="1" <?php checked($only_test_plan, 1); ?> />
+    <label for="only_test_plan_option">Wyłącz normalny plan i pokazuj tylko testowy</label>
+    <?php
+}
+
+// Function to display the date field for "Data obowiązywania planu"
 function data_obowiazywania_option_field() {
-    $data = get_option('data_obowiazywania_option', date('d-m-Y')); // Pobranie wartości opcji, domyślnie ustawiamy dzisiejszą datę
+    $data = get_option('data_obowiazywania_option', gmdate('d-m-Y')); // Pobranie wartości opcji, domyślnie ustawiamy dzisiejszą datę
     ?>
     <input type="date" name="data_obowiazywania_option" value="<?php echo esc_attr($data); ?>" placeholder="d-m-Y" />
     <?php
 }
+
+// Funkcja wyświetlająca pole dla daty planu testowego
+function data_obowiazywania_test_plan_field() {
+    $data_test = get_option('data_obowiazywania_test_plan', gmdate('d-m-Y')); // Domyślna data to dzisiejsza
+    ?>
+    <input type="date" name="data_obowiazywania_test_plan" value="<?php echo esc_attr($data_test); ?>" />
+    <?php
+}
+
+
+// Function to display the checkbox for "Enable Test Plan"
+function enable_test_plan_option_field() {
+    $enable_test_plan = get_option('enable_test_plan_option', false);
+    ?>
+    <input type="checkbox" name="enable_test_plan_option" value="1" <?php checked($enable_test_plan, 1); ?> />
+    <label for="enable_test_plan_option">Włącz jednocześnie plan normalny i testowy</label>
+    <?php
+}
+
+// Function to display the checkbox for "Show Plan for Logged-In Users"
 function show_plan_for_logged_in_option_field() {
     $show_for_logged_in = get_option('show_plan_for_logged_in_option', false);
     ?>
@@ -53,7 +124,8 @@ function show_plan_for_logged_in_option_field() {
     <label for="show_plan_for_logged_in_option">Pokaż plan lekcji dla zalogowanych użytkowników, gdy plan jest wyłączony</label>
     <?php
 }
-// Funkcja wyświetlająca pole do włączenia/wyłączenia planu
+
+// Function to display the checkbox for "Plan Disabled"
 function plan_disabled_option_field() {
     $is_disabled = get_option('plan_disabled_option', false);
     ?>
@@ -62,49 +134,70 @@ function plan_disabled_option_field() {
     <?php
 }
 
+
+if ( ! function_exists( 'WP_Filesystem' ) ) {
+    require_once( ABSPATH . 'wp-admin/includes/file.php' );
+}
+
 function upload_and_extract_zip() {
-    if (isset($_FILES['plan_lekcji_zip_file']) && current_user_can('manage_options')) {
-        $uploaded_file = $_FILES['plan_lekcji_zip_file'];
+    if (isset($_FILES['normal_plan_lekcji_zip_file']) && current_user_can('manage_options')) {
+        $uploaded_file = $_FILES['normal_plan_lekcji_zip_file'];
 
         // Akceptujemy oba typy MIME dla plików ZIP
         if ($uploaded_file['type'] === 'application/zip' || $uploaded_file['type'] === 'application/x-zip-compressed') {
             // Określenie ścieżki do katalogu, gdzie plik ZIP będzie rozpakowywany
-            $upload_dir = wp_upload_dir()['basedir'] . '/timetable/';
+            $upload_dir = wp_upload_dir()['basedir'] . '/timetable/timetable/';
             $zip_file_path = $upload_dir . basename($uploaded_file['name']);
 
-            // Sprawdzanie, czy katalog docelowy istnieje, jeśli nie, tworzymy go
-            if (!file_exists($upload_dir)) {
-                mkdir($upload_dir, 0755, true); // Tworzenie katalogu
+            // Inicjalizacja WP_Filesystem
+            WP_Filesystem(); // Inicjalizacja systemu plików WordPress
+
+            // Pobranie instancji WP_Filesystem
+            global $wp_filesystem;
+
+            // Sprawdzenie, czy WP_Filesystem działa prawidłowo
+            if ( ! $wp_filesystem ) {
+                echo '<div class="error"><p>Nie udało się zainicjować systemu plików WordPress.</p></div>';
+                return;
             }
 
-            // Usuwamy zawartość katalogu 'timetable' przed rozpakowaniem
-            array_map('unlink', glob($upload_dir . '*'));
-            rmdir($upload_dir); // Usuwamy katalog
-            mkdir($upload_dir, 0755, true); // Tworzymy katalog ponownie, aby mieć pusty katalog 'timetable'
-
-            // Sprawdzenie, czy plik już istnieje
-            if (file_exists($zip_file_path)) {
-                echo '<div class="error"><p>Plik o tej nazwie już istnieje. Proszę zmienić nazwę pliku.</p></div>';
-            } else {
-                // Przeniesienie pliku do katalogu
-                if (move_uploaded_file($uploaded_file['tmp_name'], $zip_file_path)) {
-                    // Rozpakowanie pliku ZIP
-                    $zip = new ZipArchive();
-                    if ($zip->open($zip_file_path) === TRUE) {
-                        // Rozpakowanie pliku do katalogu 'timetable'
-                        $zip->extractTo($upload_dir);
-                        $zip->close();
-
-                        // Opcjonalnie usuwamy plik ZIP po rozpakowaniu
-                        unlink($zip_file_path);
-
-                        echo '<div class="updated"><p>Plik ZIP został pomyślnie przesłany i rozpakowany do katalogu: ' . $upload_dir . '</p></div>';
-                    } else {
-                        echo '<div class="error"><p>Nie udało się otworzyć pliku ZIP.</p></div>';
-                    }
-                } else {
-                    echo '<div class="error"><p>Wystąpił problem podczas przesyłania pliku.</p></div>';
+            // Sprawdzamy, czy katalog docelowy istnieje, jeśli nie, tworzymy go
+            if ( ! $wp_filesystem->is_dir($upload_dir) ) {
+                if ( ! $wp_filesystem->mkdir($upload_dir, 0755) ) {
+                    echo '<div class="error"><p>Nie udało się utworzyć katalogu: ' . esc_html($upload_dir) . '</p></div>';
+                    return;
                 }
+            }
+
+            // Usuwanie zawartości katalogu 'timetable' przed rozpakowaniem
+            $files = $wp_filesystem->dirlist($upload_dir);
+            foreach ($files as $file) {
+                if ($file['type'] === 'file') {
+                    $wp_filesystem->delete($upload_dir . $file['name']);
+                }
+            }
+
+            // Use wp_handle_upload() to securely handle the upload
+            $upload_overrides = array('test_form' => false); // Avoid form check
+            $uploaded = wp_handle_upload($uploaded_file, $upload_overrides);
+
+            if ($uploaded && !isset($uploaded['error'])) {
+                // Rozpakowanie pliku ZIP
+                $zip = new ZipArchive();
+                if ($zip->open($uploaded['file']) === TRUE) {
+                    // Rozpakowanie pliku do katalogu 'timetable'
+                    $zip->extractTo($upload_dir);
+                    $zip->close();
+
+                    // Opcjonalnie usuwamy plik ZIP po rozpakowaniu
+                    wp_delete_file($uploaded['file']);  // Replaced unlink() with wp_delete_file()
+
+                    echo '<div class="updated"><p>Plik ZIP został pomyślnie przesłany i rozpakowany do katalogu: ' . esc_html($upload_dir) . '</p></div>';
+                } else {
+                    echo '<div class="error"><p>Nie udało się otworzyć pliku ZIP.</p></div>';
+                }
+            } else {
+                echo '<div class="error"><p>Wystąpił problem podczas przesyłania pliku: ' . esc_html($uploaded['error']) . '</p></div>';
             }
         } else {
             echo '<div class="error"><p>Proszę przesłać plik ZIP.</p></div>';
@@ -112,17 +205,102 @@ function upload_and_extract_zip() {
     }
 }
 
+
+
+
+
+if ( ! function_exists( 'WP_Filesystem' ) ) {
+    require_once( ABSPATH . 'wp-admin/includes/file.php' );
+}
+
+function upload_and_extract_test_zip() {
+    if (isset($_FILES['test_plan_lekcji_zip_file']) && current_user_can('manage_options')) {
+        $uploaded_file = $_FILES['test_plan_lekcji_zip_file'];
+
+        // Akceptujemy oba typy MIME dla plików ZIP
+        if ($uploaded_file['type'] === 'application/zip' || $uploaded_file['type'] === 'application/x-zip-compressed') {
+            // Określenie ścieżki do katalogu, gdzie plik ZIP będzie rozpakowywany
+            $upload_dir = wp_upload_dir()['basedir'] . '/timetable/timetable_test/';
+            $zip_file_path = $upload_dir . basename($uploaded_file['name']);
+
+            // Inicjalizacja WP_Filesystem
+            WP_Filesystem(); // Inicjalizacja systemu plików WordPress
+
+            // Pobranie instancji WP_Filesystem
+            global $wp_filesystem;
+
+            // Sprawdzenie, czy WP_Filesystem działa prawidłowo
+            if ( ! $wp_filesystem ) {
+                echo '<div class="error"><p>Nie udało się zainicjować systemu plików WordPress.</p></div>';
+                return;
+            }
+
+            // Sprawdzamy, czy katalog docelowy istnieje, jeśli nie, tworzymy go
+            if ( ! $wp_filesystem->is_dir($upload_dir) ) {
+                if ( ! $wp_filesystem->mkdir($upload_dir, 0755) ) {
+                    echo '<div class="error"><p>Nie udało się utworzyć katalogu: ' . esc_html($upload_dir) . '</p></div>';
+                    return;
+                }
+            }
+
+            // Usuwanie zawartości katalogu 'timetable_test' przed rozpakowaniem
+            $files = $wp_filesystem->dirlist($upload_dir);
+            foreach ($files as $file) {
+                if ($file['type'] === 'file') {
+                    $wp_filesystem->delete($upload_dir . $file['name']);
+                }
+            }
+
+            // Use wp_handle_upload() to securely handle the upload
+            $upload_overrides = array('test_form' => false); // Avoid form check
+            $uploaded = wp_handle_upload($uploaded_file, $upload_overrides);
+
+            if ($uploaded && !isset($uploaded['error'])) {
+                // Rozpakowanie pliku ZIP
+                $zip = new ZipArchive();
+                if ($zip->open($uploaded['file']) === TRUE) {
+                    // Rozpakowanie pliku do katalogu 'timetable'
+                    $zip->extractTo($upload_dir);
+                    $zip->close();
+
+                    // Opcjonalnie usuwamy plik ZIP po rozpakowaniu
+                    wp_delete_file($uploaded['file']);  // Replaced unlink() with wp_delete_file()
+
+                    echo '<div class="updated"><p>Plik ZIP został pomyślnie przesłany i rozpakowany do katalogu: ' . esc_html($upload_dir) . '</p></div>';
+                } else {
+                    echo '<div class="error"><p>Nie udało się otworzyć pliku ZIP.</p></div>';
+                }
+            } else {
+                echo '<div class="error"><p>Wystąpił problem podczas przesyłania pliku: ' . esc_html($uploaded['error']) . '</p></div>';
+            }
+        } else {
+            echo '<div class="error"><p>Proszę przesłać plik ZIP.</p></div>';
+        }
+    }
+}
+
+
+
+
 // Funkcja wyświetlająca stronę ustawień pluginu
 function plan_lekcji_settings_page() {
     ?>
     <div class="wrap">
         <h1>Ustawienia Plan Lekcji</h1>
-        <h2>Upload i Rozpakowywanie ZIP</h2>
+        <h2>Upload i Rozpakowywanie normalnego planu (ZIP)</h2>
         <form method="post" enctype="multipart/form-data">
             <?php upload_and_extract_zip(); // Funkcja przetwarzająca upload ?>
-            <input type="file" name="plan_lekcji_zip_file" accept=".zip" required />
+            <input type="file" name="normal_plan_lekcji_zip_file" accept=".zip" required />
             <input type="submit" value="Prześlij i Rozpakuj" class="button-primary" />
         </form>
+
+        <h2>Upload i Rozpakowywanie testowego planu (ZIP)</h2>
+        <form method="post" enctype="multipart/form-data">
+            <?php upload_and_extract_test_zip(); // Funkcja przetwarzająca upload ?>
+            <input type="file" name="test_plan_lekcji_zip_file" accept=".zip" required />
+            <input type="submit" value="Prześlij i Rozpakuj" class="button-primary" />
+        </form>
+
 
         <form method="post" action="options.php">
             <?php
@@ -148,28 +326,9 @@ function plan_lekcji_menu() {
     // Submenu w głównym menu "Ustawienia" - zawiera ustawienia
     add_submenu_page('plan_lekcji', 'Ustawienia', 'Ustawienia', 'manage_options', 'plan_lekcji', 'plan_lekcji_settings_page');
 }
-require 'wp-guard/src/WpGuard.php';
-
-$guard = new Anystack\WpGuard\V001\WpGuard(
-	__FILE__,
-	[
-		'api_key' => 'dR7xvZ22UI4uP126t8YQuPprc35RyyQm',
-		'product_id' => '9cca30c7-cbe4-4dff-b04f-37ddcdc2fcb8',
-		'product_name' => 'plugin',
-		'license' => [
-			'require_email' => false,
-		],
-		'updater' => [
-			'enabled' => true,
-		]
-	]
-);
-
-$guard->validCallback(function() {
 
 // Hook do dodania strony ustawień do menu administracyjnego
 add_action('admin_menu', 'plan_lekcji_menu');
-});
 
 // Hook do rejestracji ustawień
 add_action('admin_init', 'plan_lekcji_register_settings');
@@ -236,101 +395,165 @@ function sort_teachers($menu_contents) {
     return $sorted_html;
 }
 
+function plan_lekcji_enqueue_scripts() {
+    // Ścieżka do pliku skryptu
+    $menu2_script_path = plugin_dir_path(__FILE__) . 'js/menu2.js';
+    $print_table_script_path = plugin_dir_path(__FILE__) . 'js/printTableScript.js';
+
+    // Zarejestruj skrypt menu2.js z wersją na podstawie daty modyfikacji pliku
+    wp_enqueue_script('menu2-script', plugin_dir_url(__FILE__) . 'js/menu2.js', array('jquery'), filemtime($menu2_script_path), true);
+
+    // Zarejestruj skrypt printTableScript.js z wersją na podstawie daty modyfikacji pliku
+    wp_enqueue_script('printTableScript', plugin_dir_url(__FILE__) . 'js/printTableScript.js', array('jquery'), filemtime($print_table_script_path), true);
+}
+add_action('wp_enqueue_scripts', 'plan_lekcji_enqueue_scripts');
+
 
 
 function plan_lekcji_shortcode($atts) {
-    // Sprawdzamy, czy plan jest wyłączony
+    // Get the plugin options
     $is_disabled = get_option('plan_disabled_option', false);
     $show_for_logged_in = get_option('show_plan_for_logged_in_option', false);
-    
-    if ($is_disabled && (!is_user_logged_in() || !$show_for_logged_in)) {
-        // Jeśli plan jest wyłączony i użytkownik nie jest zalogowany lub ustawienie pokazania planu dla zalogowanych jest wyłączone, wyświetlamy tylko kod HTML z obrazkiem
-        return '<!-- wp:heading {"textAlign":"center","level":3,"style":{"elements":{"link":{"color":{"text":"var:preset|color|theme-palette1"}}}},"textColor":"theme-palette1"} -->
-<h3 class="wp-block-heading has-text-align-center has-theme-palette-1-color has-text-color has-link-color">Jeśli to zadziała, to nie pytaj, jak. Będziemy udawać, że wszystko jest w porządku. #programista</h3>
-<!-- /wp:heading -->
+    $enable_test_plan = get_option('enable_test_plan_option', false);
+    $only_test_plan = get_option('only_test_plan_option', false); // New option
+    $is_test_plan = isset($_GET['test']) && $_GET['test'] == '1';
+	plan_lekcji_enqueue_scripts();
 
-<!-- wp:image {"sizeSlug":"large"} -->
-<figure class="wp-block-image size-large"><img src="/wp-content/plugins/plan-lekcji/mem.jpeg" alt=""/></figure>
-<!-- /wp:image -->';
-    }
-
-    // Jeśli plan nie jest wyłączony, wyświetlamy standardowy plan lekcji
-    // Ścieżka do katalogu, w którym są pliki
-    $upload_dir = wp_upload_dir()['basedir'] . '/timetable/';
-    
-// Sprawdzamy, czy mamy parametr 'plan' w URL
-if (isset($_GET['plan'])) {
-    $plan = sanitize_text_field($_GET['plan']);
-    
-    // Ustawiamy ciasteczko na 30 dni
-    setcookie('plan', $plan, time() + 30 * DAY_IN_SECONDS, '/'); 
-    $_COOKIE['plan'] = $plan; // Bezpośrednie przypisanie dla bieżącej sesji (żeby natychmiast działało)
-}    // Ścieżka do pliku z planem lekcji
-
-// Sprawdzamy, czy plan jest w URL lub ciasteczku
-if (isset($_GET['plan'])) {
-    $plan = sanitize_text_field($_GET['plan']);
-} elseif (isset($_COOKIE['plan'])) {
-    $plan = sanitize_text_field($_COOKIE['plan']);
-} else {
-    $plan = 'o1'; // Domyślny plan, jeśli nie znaleziono
+if ($only_test_plan && !isset($_GET['test'])) {
+    wp_redirect(add_query_arg('test', '1', home_url($_SERVER['REQUEST_URI'])));
+    exit;
 }
 
 
-    $file_path = $upload_dir . $plan . '.html';
 
-    // Sprawdzenie, czy plik istnieje
+    // Force the test plan mode if "only_test_plan_option" is enabled
+    if ($only_test_plan) {
+        $is_test_plan = true;
+    }
+
+    // If "only_test_plan_option" is enabled and no test plan is selected, redirect to test plan
+    if ($only_test_plan && !$is_test_plan) {
+        wp_redirect(add_query_arg('test', '1', home_url($_SERVER['REQUEST_URI'])));
+        exit;
+    }
+
+    // Display a warning if it's the test plan
+    $zmianna_test = '';
+    if ($is_test_plan) {
+        $zmianna_test = '<h5 style="font-size: 30px; color: red;">UWAGA - Testowy Plan lekcji</h5>';
+    }
+
+// Check if the timetable is disabled and if the test parameter is present
+if ((!$only_test_plan && !$enable_test_plan) && $is_test_plan) {
+    // Get the current URL and remove the 'test' parameter
+    $current_url = $_SERVER['REQUEST_URI'];
+    $parsed_url = wp_parse_url($current_url);
+    parse_str($parsed_url['query'] ?? '', $query_params);
+    unset($query_params['test']);  // Remove the 'test' parameter
+    $new_url = $parsed_url['path'];  // Rebuild URL without 'test'
+
+    return '
+    <h3 style="padding-top: 50px; text-align:center; color:red;">Plan testowy jest wyłączony. Nie można wyświetlić planu lekcji.</h3>
+    <form action="' . $new_url . '" method="get" style="text-align:center; padding-top:20px;">
+        <button type="submit" style="border-radius: 10px; padding: 20px;">Powrót do normalnego planu</button>
+    </form>';
+}
+
+
+    // Check if the timetable is disabled and the user is not logged in or cannot see the plan
+    if ($is_disabled && (!is_user_logged_in() || !$show_for_logged_in)) {
+        return '<!-- wp:heading {"textAlign":"center","level":3} -->
+        <h3 class="wp-block-heading has-text-align-center has-theme-palette-1-color has-text-color has-link-color">Jeśli to zadziała, to nie pytaj, jak. Będziemy udawać, że wszystko jest w porządku. #programista</h3>        <!-- /wp:heading -->
+        <figure class="wp-block-image size-large"><img src="/wp-content/plugins/plan-lekcji/mem.jpeg" alt=""/></figure>';
+    }
+
+    // Define the upload directories for standard and test plans
+    $upload_dir = wp_upload_dir()['basedir'] . '/timetable/timetable/';
+    $test_upload_dir = wp_upload_dir()['basedir'] . '/timetable/timetable_test/';
+
+$is_test_plan = isset($_GET['test']) && $_GET['test'] == '1';
+
+// Ustawienie ciasteczka planu
+if (isset($_GET['plan'])) {
+    $plan = sanitize_text_field($_GET['plan']);  // Pobieramy wartość planu z URL
+    // Zmieniamy nazwę ciasteczka w zależności od trybu
+    $cookie_name = $is_test_plan ? 'test_plan' : 'standard_plan';
+    setcookie($cookie_name, $plan, time() + 30 * DAY_IN_SECONDS, '/');  // Zapisujemy plan do ciasteczka
+    $_COOKIE[$cookie_name] = $plan;  // Ustawiamy ciasteczko w bieżącej sesji
+} elseif (isset($_COOKIE['test_plan']) && $is_test_plan) {
+    // Używamy ciasteczka dla planu testowego
+    $plan = sanitize_text_field($_COOKIE['test_plan']);
+} elseif (isset($_COOKIE['standard_plan']) && !$is_test_plan) {
+    // Używamy ciasteczka dla planu standardowego
+    $plan = sanitize_text_field($_COOKIE['standard_plan']);
+} else {
+    // Domyślny plan (np. 'o1')
+    $plan = 'o1';
+}
+
+    // Choose the file path depending on whether it's a test plan or not
+    $file_path = $is_test_plan ? $test_upload_dir . $plan . '.html' : $upload_dir . $plan . '.html';
+
     if (file_exists($file_path)) {
-        // Odczytanie zawartości pliku
+        // Process the timetable file contents
         $file_contents = file_get_contents($file_path);
-        
-        // Pobieramy tytuł z <span class="tytulnapis">...</span>
         preg_match('/<span class="tytulnapis">(.*?)<\/span>/is', $file_contents, $title_matches);
         $teacher_title = isset($title_matches[1]) ? $title_matches[1] : $plan;
-        
-// Za pomocą wyrażeń regularnych wyciągamy tylko zawartość tabeli z pliku
-preg_match('/<table[^>]*border="1" cellspacing="0" cellpadding="4"[^>]*class="tabela"[^>]*>(.*?)<\/table>/is', $file_contents, $matches);
 
-// Wprowadzenie zmiany w linkach tabeli
-if (isset($matches[0])) {
-    // Zawartość tabeli z atrybutami
-    $table_content = $matches[0];
+        preg_match('/<table[^>]*border="1" cellspacing="0" cellpadding="4"[^>]*class="tabela"[^>]*>(.*?)<\/table>/is', $file_contents, $matches);
 
-// Modyfikacja linków w tabeli
-$table_content = preg_replace_callback('/href="(.*?)"/', function ($matches) use ($plan) {
-    if (preg_match('/([a-zA-Z0-9_-]+)\.html/', $matches[1], $url_matches)) {
-        $new_plan = $url_matches[1]; // Wyciągamy kod planu
-        return 'href="?plan=' . $new_plan . '" class="ajax-link"'; // Dodajemy klasę ajax-link
-    }
-    return $matches[0]; // Jeśli link nie zawiera '.html', pozostawiamy go bez zmian
-}, $table_content);
-   
+        if (isset($matches[0])) {
+            $table_content = $matches[0];
 
-            // Wczytanie pliku lista.html do zmiennej
-            $menu_file_path = $upload_dir . 'lista.html';
+            // Update links in the timetable content
+            $table_content = preg_replace_callback('/href="(.*?)"/', function ($matches) use ($plan, $is_test_plan) {
+                if (preg_match('/([a-zA-Z0-9_-]+)\.html/', $matches[1], $url_matches)) {
+                    $new_plan = $url_matches[1];
+                    $new_url = '?plan=' . $new_plan;
+                    if ($is_test_plan) {
+                        $new_url .= '&test=1';
+                    }
+                    return 'href="' . $new_url . '" class="ajax-link"';
+                }
+                return $matches[0];
+            }, $table_content);
+
+            // Process menu links for timetable
+            $menu_file_path = $is_test_plan ? $test_upload_dir . 'lista.html' : $upload_dir . 'lista.html';
+
             if (file_exists($menu_file_path)) {
                 $menu_contents = file_get_contents($menu_file_path);
+                $menu_contents = preg_replace_callback('/href="(.*?)"/', function ($matches) use ($plan, $is_test_plan) {
+                    if (preg_match('/plany\/([a-zA-Z0-9_-]+)\.html/', $matches[1], $url_matches)) {
+                        $new_plan = $url_matches[1];
+                        return 'href="?plan=' . $new_plan . ($is_test_plan ? '&test=1' : '') . '"';
+                    }
+                    return $matches[0];
+                }, $menu_contents);
+		$sorted_nauczyciele = sort_teachers($menu_contents);
 
-                // Zmiana linków w menu, aby wskazywały odpowiedni plan
-$menu_contents = preg_replace_callback('/href="(.*?)"/', function ($matches) use ($plan) {
-    // Jeśli link zawiera .html, zmień go na ?plan=o1
-    if (preg_match('/plany\/([a-zA-Z0-9_-]+)\.html/', $matches[1], $url_matches)) {
-        $new_plan = $url_matches[1]; // Nowy plan
-        return 'href="?plan=' . $new_plan . '"'; // Link z parametrem plan
-    }
-    return $matches[0]; // Jeśli link nie zawiera .html, pozostaw go bez zmian
-}, $menu_contents);
-    $sorted_nauczyciele = sort_teachers($menu_contents);
-    
-    // Wstaw wynik sortowania do HTML – UPEWNIJ SIĘ, ŻE NIE WSTAWIASZ NIGDY ORYGINALNEJ NIE SORTOWANEJ LISTY
-
-
-                // Wyciągnięcie oddziałów, nauczycieli i sal
                 preg_match('/<h4>Oddziały<\/h4>(.*?)<h4>Nauczyciele<\/h4>/is', $menu_contents, $oddzialy);
                 preg_match('/<h4>Nauczyciele<\/h4>(.*?)<h4>Sale<\/h4>/is', $menu_contents, $nauczyciele);
                 preg_match('/<h4>Sale<\/h4>(.*?)<\/body>/is', $menu_contents, $sale);
 
-                // Generowanie kodu HTML do wyświetlenia
+// Generate buttons for switching plans
+$switch_button_html = '';
+if ($enable_test_plan && !$only_test_plan) { // Hide if "only_test_plan_option" is active
+    $active_test_style = $is_test_plan ? 'background-color: #1a4d80;' : 'background-color: #2b6cb0;';
+    $active_standard_style = !$is_test_plan ? 'background-color: #1a4d80;' : 'background-color: #2b6cb0;';
+
+    // Get the current URL and remove all query parameters for the standard plan
+    $current_url = $_SERVER['REQUEST_URI'];
+    $parsed_url = wp_parse_url($current_url);
+    $new_url_standard = $parsed_url['path'];  // Remove query parameters
+
+    $switch_button_html = '
+    <div class="plan-selector" style="text-align: center; margin-bottom: 20px;">
+        <a href="?test=1" style="border-radius: 10px; padding: 10px; ' . $active_test_style . ' color: white; text-decoration: none;">Plan Testowy</a> |
+        <a href="' . $new_url_standard . '" style="border-radius: 10px; padding: 10px; ' . $active_standard_style . ' color: white; text-decoration: none;">Plan Standardowy</a>
+    </div>';
+}
+
 $output = '<style>
     /*style planu lekcji*/
     .col, .col2, .col3 { display: none; }
@@ -427,7 +650,7 @@ $output = '<style>
 
 .toggle-list {
     opacity: 0; /* Ukrywa elementy */
-    visibility: hidden; /* Ukrywa elementy */
+
     max-height: 0; /* Ukrywa menu, ustawiamy na 0 */
     overflow: hidden; /* Ukrywa zawartość poza max-height */
     padding: 0; /* Usuwa padding */
@@ -462,6 +685,7 @@ ul {
     a:hover { 
         color: #669cd7; 
     }
+
 
     /* Usuwanie kropek przed listą */
     ul.toggle-list {
@@ -517,8 +741,8 @@ ul {
 ';
 
 // Wyświetlenie tytułu pobranego z pliku
-$output .= '<script src="/wp-content/plugins/plan-lekcji/js/menu.js"></script>';
-$output .= '<h2 style="color: var(--global-palette2); margin-top:120px; font-size: 20px; text-align: center;">' . esc_html($teacher_title) . '</h2>';
+$output .= '<h2 style="color: var(--global-palette2); margin-top:120px; font-size: 28px; text-align: center;">' . esc_html($teacher_title) . '</h2>';
+$output .= $switch_button_html;
 
 $output .= '<div id="loading" class="loading" style="display: none;"></div>';  // Dodanie animacji ładowania
                 // Górny kontener z menu i planem lekcji w jednej linii
@@ -558,13 +782,13 @@ $output .= '<div id="loading" class="loading" style="display: none;"></div>';  /
                 // Sekcja col3 - dodatkowy blok, zawsze poniżej tabeli
                 $output .= '<div class="col3" style="margin-top: 20px;">';
                     $output .= '<div style="text-align: center; margin-top: 5px;">';
-                        $output .= '<h6 style="display: inline; font-size: 16px;">Plan obowiązuje od:</h6>';
+                        $output .= $zmianna_test . '<h6 style="display: inline; font-size: 16px;">Plan obowiązuje od:</h6>';
                         $output .= '<h5 style="display: inline; margin-left: 5px; font-size: 18px;">' . do_shortcode('[data_obowiazywania_shortcode]') . ' r.</h5>';
                     $output .= '</div>';
                     $output .= '<div class="zglos">';
                         $output .= '<h4><a href="/plan-contact" style="color: red; text-decoration: none;">Zgłoś błąd w planie</a></h4>';
                     $output .= '</div>';
-                    $output .= '<div class="aktualizacja"> Aktualizacja: ' . date("d-m-Y H:i", filemtime($file_path)) . '</div>';
+                    $output .= '<div class="aktualizacja"> Aktualizacja: ' . gmdate("d-m-Y H:i", filemtime($file_path)) . '</div>';
                     $output .= '<div class="print-button" style="text-align: left; margin-top: 5px; margin-left: 5px;">';
                         $output .= '<button onclick="printTable()" style="padding: 12px 12px; background-color: #2b6cb0; color: #fff; border: none; display: flex; align-items: center; font-size: 20px; line-height: 0;">';
                             $output .= '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" class="bi bi-printer" viewBox="0 0 16 16" style="margin-right: 8px; vertical-align: middle;">';
@@ -574,7 +798,6 @@ $output .= '<div id="loading" class="loading" style="display: none;"></div>';  /
                             $output .= 'Drukuj';
                         $output .= '</button>';
                     $output .= '</div>';
-                    $output .= '<script src="/wp-content/plugins/plan-lekcji/js/printTableScript.js"></script>';
                         $output .= '</div>'; // .tabela
                     $output .= '</div>'; // .col2
                 $output .= '</div>'; // .col3 - dodatkowy blok pod tabelą
@@ -594,17 +817,31 @@ $output .= '<div id="loading" class="loading" style="display: none;"></div>';  /
     return $output;
 }
 
-add_shortcode('plan_lekcji', 'plan_lekcji_shortcode');
+
+
+
+
+
 // Rejestracja shortcode dla daty obowiązywania
 function data_obowiazywania_shortcode() {
-    // Pobieramy wartość daty z ustawień
-    $data = get_option('data_obowiazywania_option', date('d-m-Y')); // Jeśli brak wartości, domyślnie ustawiamy dzisiejszą datę
+    // Pobieramy wartość daty z ustawień, ale także sprawdzamy, czy tryb testowy jest aktywny
+    $is_test_plan = isset($_GET['test']) && $_GET['test'] == '1';
     
+    if ($is_test_plan) {
+        // Jeśli testowy plan, pobieramy datę planu testowego
+        $data = get_option('data_obowiazywania_test_plan', gmdate('d-m-Y')); // Domyślnie dzisiejsza data, jeśli brak ustawienia
+    } else {
+        // Jeśli normalny plan, pobieramy standardową datę obowiązywania
+        $data = get_option('data_obowiazywania_option', gmdate('d-m-Y'));
+    }
+
     // Zmieniamy format daty na d-m-Y
-    $formatted_date = date('d-m-Y', strtotime($data));
+    $formatted_date = gmdate('d-m-Y', strtotime($data));
 
     return esc_html($formatted_date);
 }
+
 add_shortcode('data_obowiazywania_shortcode', 'data_obowiazywania_shortcode');
 
+add_shortcode('plan_lekcji', 'plan_lekcji_shortcode');
 ?>
