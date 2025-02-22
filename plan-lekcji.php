@@ -397,11 +397,11 @@ function sort_teachers($menu_contents) {
 
 function plan_lekcji_enqueue_scripts() {
     // Ścieżka do pliku skryptu
-    $menu2_script_path = plugin_dir_path(__FILE__) . 'js/menu2.js';
+    $menu2_script_path = plugin_dir_path(__FILE__) . 'js/menu.js';
     $print_table_script_path = plugin_dir_path(__FILE__) . 'js/printTableScript.js';
 
     // Zarejestruj skrypt menu2.js z wersją na podstawie daty modyfikacji pliku
-    wp_enqueue_script('menu2-script', plugin_dir_url(__FILE__) . 'js/menu2.js', array('jquery'), filemtime($menu2_script_path), true);
+    wp_enqueue_script('menu2-script', plugin_dir_url(__FILE__) . 'js/menu.js', array('jquery'), filemtime($menu2_script_path), true);
 
     // Zarejestruj skrypt printTableScript.js z wersją na podstawie daty modyfikacji pliku
     wp_enqueue_script('printTableScript', plugin_dir_url(__FILE__) . 'js/printTableScript.js', array('jquery'), filemtime($print_table_script_path), true);
@@ -680,6 +680,9 @@ ul {
     a { 
         color: #fff; 
         text-decoration: none; 
+    }
+    a:focus { 
+        color: #fff !important; 
     }
 
     a:hover { 
