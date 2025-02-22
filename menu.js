@@ -22,23 +22,38 @@
         }
     }
 
+    // Funkcja do załadowania nowego planu
     function loadNewPlan(plan) {
-        fetch("?plan=" + plan)
+        // Sprawdzamy, czy plan testowy jest w URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const isTestPlan = urlParams.has('test'); // Sprawdzamy, czy istnieje parametr test
+
+        // Jeśli plan testowy, dodajemy parametr test=1 do URL
+        let fetchUrl = "?plan=" + plan;
+        if (isTestPlan) {
+            fetchUrl += "&test=1";
+        }
+
+        // Wykonujemy zapytanie AJAX w celu załadowania nowego planu
+        fetch(fetchUrl)
             .then(response => response.text())
             .then(data => {
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(data, "text/html");
+
+                // Wyszukiwanie nowego nagłówka i tabeli w załadowanym dokumencie
                 const newTable = doc.querySelector(".tabela");
                 const newTitleElem = doc.querySelector("h2");
                 const newTitle = newTitleElem ? newTitleElem.innerText : "";
 
+                // Jeśli tabela została znaleziona, zaktualizuj jej zawartość
                 if (newTable) {
                     const container = document.getElementById("tabela-container");
                     if (container) {
                         container.innerHTML = newTable.outerHTML;
                     }
 
-                    // Przypisz ponownie event listenery do nowych linków w tabeli
+                    // Ponowne przypisanie event listenerów do linków w tabeli
                     document.querySelectorAll(".ajax-link").forEach(function(link) {
                         link.addEventListener("click", function(event) {
                             event.preventDefault();
@@ -51,18 +66,30 @@
                     });
                 }
 
-                // Aktualizacja tytułu strony i nagłówka
+                // Zaktualizuj tytuł strony i nagłówek
                 document.title = "Plan lekcji - " + newTitle;
                 const header = document.querySelector("h2");
                 if (header) {
                     header.innerText = newTitle;
                 }
 
-                // Aktualizacja URL bez przeładowania strony
-                history.pushState(null, "", "?plan=" + plan);
+                // Tworzymy nowy URL, uwzględniając parametr testowy
+                let newUrl = "?plan=" + plan;
 
-                // Nadpisanie ciasteczka z wybranym planem (ważnym przez rok)
-                setPlanCookie(plan);
+                // Jeśli jesteśmy na stronie testowego planu, dodajemy parametr test
+                if (isTestPlan) {
+                    newUrl += "&test=1";
+                }
+
+                // Aktualizacja URL bez przeładowania strony
+                history.pushState(null, "", newUrl);
+
+                // Nadpisanie ciasteczka z wybranym planem
+                if (isTestPlan) {
+                    setCookie("test_plan", plan, 365);  // Ciasteczko dla planu testowego
+                } else {
+                    setCookie("standard_plan", plan, 365);  // Ciasteczko dla planu standardowego
+                }
             })
             .catch(error => {
                 console.error("Error loading new plan:", error);
