@@ -150,6 +150,16 @@
             });
         });
 
+
+window.addEventListener("popstate", function (event) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const plan = urlParams.get("plan");
+    if (plan) {
+        loadNewPlan(plan);
+    }
+});
+
+
         // Ustawienie event listenerów dla linków w tabeli
         document.querySelectorAll(".ajax-link").forEach(function(link) {
             link.addEventListener("click", function(event) {
