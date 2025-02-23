@@ -161,7 +161,16 @@ function upload_and_extract_zip() {
                 return;
             }
 
-            // Sprawdzamy, czy katalog docelowy istnieje, jeśli nie, tworzymy go
+            // Sprawdzamy, czy katalog nadrzędny 'timetable' istnieje, jeśli nie, tworzymy go
+            $parent_dir = wp_upload_dir()['basedir'] . '/timetable';
+            if ( ! $wp_filesystem->is_dir($parent_dir) ) {
+                if ( ! $wp_filesystem->mkdir($parent_dir, 0755) ) {
+                    echo '<div class="error"><p>Nie udało się utworzyć katalogu nadrzędnego: ' . esc_html($parent_dir) . '</p></div>';
+                    return;
+                }
+            }
+
+            // Sprawdzamy, czy katalog docelowy 'timetable/timetable' istnieje, jeśli nie, tworzymy go
             if ( ! $wp_filesystem->is_dir($upload_dir) ) {
                 if ( ! $wp_filesystem->mkdir($upload_dir, 0755) ) {
                     echo '<div class="error"><p>Nie udało się utworzyć katalogu: ' . esc_html($upload_dir) . '</p></div>';
@@ -205,14 +214,6 @@ function upload_and_extract_zip() {
     }
 }
 
-
-
-
-
-if ( ! function_exists( 'WP_Filesystem' ) ) {
-    require_once( ABSPATH . 'wp-admin/includes/file.php' );
-}
-
 function upload_and_extract_test_zip() {
     if (isset($_FILES['test_plan_lekcji_zip_file']) && current_user_can('manage_options')) {
         $uploaded_file = $_FILES['test_plan_lekcji_zip_file'];
@@ -235,7 +236,16 @@ function upload_and_extract_test_zip() {
                 return;
             }
 
-            // Sprawdzamy, czy katalog docelowy istnieje, jeśli nie, tworzymy go
+            // Sprawdzamy, czy katalog nadrzędny 'timetable' istnieje, jeśli nie, tworzymy go
+            $parent_dir = wp_upload_dir()['basedir'] . '/timetable';
+            if ( ! $wp_filesystem->is_dir($parent_dir) ) {
+                if ( ! $wp_filesystem->mkdir($parent_dir, 0755) ) {
+                    echo '<div class="error"><p>Nie udało się utworzyć katalogu nadrzędnego: ' . esc_html($parent_dir) . '</p></div>';
+                    return;
+                }
+            }
+
+            // Sprawdzamy, czy katalog docelowy 'timetable/timetable_test' istnieje, jeśli nie, tworzymy go
             if ( ! $wp_filesystem->is_dir($upload_dir) ) {
                 if ( ! $wp_filesystem->mkdir($upload_dir, 0755) ) {
                     echo '<div class="error"><p>Nie udało się utworzyć katalogu: ' . esc_html($upload_dir) . '</p></div>';
@@ -473,49 +483,32 @@ if ((!$only_test_plan && !$enable_test_plan) && $is_test_plan) {
 
 $is_test_plan = isset($_GET['test']) && $_GET['test'] == '1';
 
-// Sprawdzamy, czy w URL jest już parametr 'plan' i nie przekierowujemy ponownie, jeśli istnieje
+// Zmienna $plan, którą ustalimy na podstawie dostępnych danych (URL, cookies, domyślny)
 if (isset($_GET['plan'])) {
+    // Parametr 'plan' jest w URL
     $plan = sanitize_text_field($_GET['plan']);
+    
     // Ustalamy nazwę ciasteczka w zależności od trybu
     $cookie_name = $is_test_plan ? 'test_plan' : 'standard_plan';
     setcookie($cookie_name, $plan, time() + 30 * DAY_IN_SECONDS, '/');  // Zapisujemy plan do ciasteczka
     $_COOKIE[$cookie_name] = $plan;  // Ustawiamy ciasteczko w bieżącej sesji
-
-    // Jeżeli URL zawiera już parametr 'plan', nie wykonujemy przekierowania
-    if (!isset($_GET['plan'])) {
-        // Pobieramy obecny URL i dodajemy parametr 'plan' oraz wszystkie inne parametry
-        $current_url = $_SERVER['REQUEST_URI'];
-
-        // Używamy `add_query_arg`, aby dodać (lub zaktualizować) parametr 'plan' w URL i zachować inne parametry
-        $new_url = add_query_arg('plan', $plan, $current_url); // Dodajemy 'plan' do URL
-
-        // Jeśli plan jest testowy, również dodajemy parametr 'test'
-        if ($is_test_plan) {
-            $new_url = add_query_arg('test', '1', $new_url);
-        }
-
-        // Przekierowanie na nowy URL z wszystkimi parametrami
-        wp_redirect($new_url);
-        exit;
-    }
-} 
-
-// Jeśli nie ma parametru 'plan' w URL i nie ma ciasteczka, ustawiamy plan domyślny
-elseif (isset($_COOKIE['test_plan']) && $is_test_plan) {
+} elseif (isset($_COOKIE['test_plan']) && $is_test_plan) {
+    // Jeśli nie ma parametru 'plan' w URL, ale jest w cookies dla trybu testowego
     $plan = sanitize_text_field($_COOKIE['test_plan']);
 } elseif (isset($_COOKIE['standard_plan']) && !$is_test_plan) {
+    // Jeśli nie ma parametru 'plan' w URL, ale jest w cookies dla trybu standardowego
     $plan = sanitize_text_field($_COOKIE['standard_plan']);
 } else {
-    // Domyślny plan, jeśli nie ma żadnego wyboru
+    // Jeśli nie ma parametru 'plan' w URL i nie ma planu w cookies, używamy domyślnego
     $plan = 'o1';
 }
 
-// Jeśli plan nie jest ustawiony, zaktualizujemy URL z domyślnym planem
-if (!isset($_GET['plan'])) {
+// Jeśli nie ma parametru 'plan' w URL i plan nie został ustawiony, aktualizujemy URL
+if (!isset($_GET['plan']) && !isset($_COOKIE['test_plan']) && !isset($_COOKIE['standard_plan'])) {
     // Pobieramy obecny URL
     $current_url = $_SERVER['REQUEST_URI'];
 
-    // Używamy `add_query_arg`, aby dodać parametr 'plan' z domyślną wartością i zachować inne parametry
+    // Używamy `add_query_arg`, aby dodać parametr 'plan' z odpowiednią wartością i zachować inne parametry
     $new_url = add_query_arg('plan', $plan, $current_url);
 
     // Jeśli plan jest testowy, również dodajemy parametr 'test'
@@ -527,6 +520,7 @@ if (!isset($_GET['plan'])) {
     wp_redirect($new_url);
     exit;
 }
+
 
     // Choose the file path depending on whether it's a test plan or not
     $file_path = $is_test_plan ? $test_upload_dir . $plan . '.html' : $upload_dir . $plan . '.html';
@@ -718,7 +712,7 @@ ul {
         color: #fff; 
         text-decoration: none; 
     }
-    a:focus { 
+    .col a:focus { 
         color: #fff !important; 
     }
 
