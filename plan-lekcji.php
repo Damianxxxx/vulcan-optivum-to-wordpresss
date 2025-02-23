@@ -473,22 +473,59 @@ if ((!$only_test_plan && !$enable_test_plan) && $is_test_plan) {
 
 $is_test_plan = isset($_GET['test']) && $_GET['test'] == '1';
 
-// Ustawienie ciasteczka planu
+// Sprawdzamy, czy w URL jest już parametr 'plan' i nie przekierowujemy ponownie, jeśli istnieje
 if (isset($_GET['plan'])) {
-    $plan = sanitize_text_field($_GET['plan']);  // Pobieramy wartość planu z URL
-    // Zmieniamy nazwę ciasteczka w zależności od trybu
+    $plan = sanitize_text_field($_GET['plan']);
+    // Ustalamy nazwę ciasteczka w zależności od trybu
     $cookie_name = $is_test_plan ? 'test_plan' : 'standard_plan';
     setcookie($cookie_name, $plan, time() + 30 * DAY_IN_SECONDS, '/');  // Zapisujemy plan do ciasteczka
     $_COOKIE[$cookie_name] = $plan;  // Ustawiamy ciasteczko w bieżącej sesji
-} elseif (isset($_COOKIE['test_plan']) && $is_test_plan) {
-    // Używamy ciasteczka dla planu testowego
+
+    // Jeżeli URL zawiera już parametr 'plan', nie wykonujemy przekierowania
+    if (!isset($_GET['plan'])) {
+        // Pobieramy obecny URL i dodajemy parametr 'plan' oraz wszystkie inne parametry
+        $current_url = $_SERVER['REQUEST_URI'];
+
+        // Używamy `add_query_arg`, aby dodać (lub zaktualizować) parametr 'plan' w URL i zachować inne parametry
+        $new_url = add_query_arg('plan', $plan, $current_url); // Dodajemy 'plan' do URL
+
+        // Jeśli plan jest testowy, również dodajemy parametr 'test'
+        if ($is_test_plan) {
+            $new_url = add_query_arg('test', '1', $new_url);
+        }
+
+        // Przekierowanie na nowy URL z wszystkimi parametrami
+        wp_redirect($new_url);
+        exit;
+    }
+} 
+
+// Jeśli nie ma parametru 'plan' w URL i nie ma ciasteczka, ustawiamy plan domyślny
+elseif (isset($_COOKIE['test_plan']) && $is_test_plan) {
     $plan = sanitize_text_field($_COOKIE['test_plan']);
 } elseif (isset($_COOKIE['standard_plan']) && !$is_test_plan) {
-    // Używamy ciasteczka dla planu standardowego
     $plan = sanitize_text_field($_COOKIE['standard_plan']);
 } else {
-    // Domyślny plan (np. 'o1')
+    // Domyślny plan, jeśli nie ma żadnego wyboru
     $plan = 'o1';
+}
+
+// Jeśli plan nie jest ustawiony, zaktualizujemy URL z domyślnym planem
+if (!isset($_GET['plan'])) {
+    // Pobieramy obecny URL
+    $current_url = $_SERVER['REQUEST_URI'];
+
+    // Używamy `add_query_arg`, aby dodać parametr 'plan' z domyślną wartością i zachować inne parametry
+    $new_url = add_query_arg('plan', $plan, $current_url);
+
+    // Jeśli plan jest testowy, również dodajemy parametr 'test'
+    if ($is_test_plan) {
+        $new_url = add_query_arg('test', '1', $new_url);
+    }
+
+    // Przekierowanie na nowy URL z wszystkimi parametrami
+    wp_redirect($new_url);
+    exit;
 }
 
     // Choose the file path depending on whether it's a test plan or not
